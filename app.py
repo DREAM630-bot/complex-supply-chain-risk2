@@ -44,28 +44,21 @@ def precompute(n_samples=400):
     G = build_graph(config)
     node_map = {n["id"]: n for n in config["nodes"]}
 
-    # 1. 前端多智能体文本测度流水线
     pipeline_result = run_pipeline()
     exposure = pipeline_result["node_exposure"]
 
-    # 2. Shapley责任度（蒙特卡罗排列采样）
     shapley = shapley_monte_carlo(G, config, n_samples=n_samples, seed=42)
     shap_rank = sorted(shapley.items(), key=lambda x: -x[1])
 
-    # 3. 割集分析（木桶效应数学化）
     cuts = analyze_cuts(G, config)
-
-    # 4. 关键候选集（分层Shapley）
     candidates = identify_critical_candidates(G, config)
 
-    # 5. 节点拓扑画像 + JSON Context池
     profiles = {}
     ctx_pool = []
     exp_vals = [exposure.get(n["id"], {}).get("severity_final", 0.0) for n in config["nodes"]]
     resp_vals = [shapley[n["id"]] for n in config["nodes"]]
     exp_threshold = float(np.median(exp_vals)) if exp_vals else 0.3
     resp_threshold = float(np.median(resp_vals)) if resp_vals else 0.05
-    # 如果中位数过低（多数节点无事件），用固定阈值
     exp_threshold = max(exp_threshold, 0.30)
 
     matrix_data = []
@@ -91,13 +84,9 @@ def precompute(n_samples=400):
                             if nid in members), "")
         })
 
-    # 6. 基线特征函数
     baseline = characteristic_value(G, config, [])
-
-    # 7. 双规则交叉验证（Pearson）
     cross_val = cross_validate_exposure_responsibility(exposure, shapley)
 
-    # 8. 拓扑图可视化数据
     topo_vis = {
         "nodes": [{"id": n["id"], "name": n["name"], "type": n["type"],
                    "lat": n["lat"], "lon": n["lon"],
@@ -125,7 +114,21 @@ def precompute(n_samples=400):
     STATE["ready"] = True
 
 
-# ============ API 路由 ============
+# ================= 关键改动：模块级启动预计算 =================
+# gunicorn 导入 app 时 __name__ == "app"，原 __main__ 块不会执行；
+# 放到模块级，保证无论 python app.py 还是 gunicorn 都能初始化。
+if not STATE["ready"]:
+    print("=" * 60)
+    print("供应链风险全景测度系统 - 启动预计算中...")
+    print("=" * 60)
+    precompute(n_samples=400)
+    print(f"预计算完成：{len(STATE['data']['matrix'])}个节点矩阵数据就绪")
+    print(f"Shapley Top3: {STATE['data']['shapley_rank'][:3]}")
+    dk = os.environ.get("DEEPSEEK_API_KEY", "")
+    print(f"DeepSeek API: {'已配置' if dk else '未配置'}")
+
+
+# ============ API 路由（全部保持原样） ============
 @app.route("/")
 def index():
     return send_from_directory("static", "index.html")
@@ -213,13 +216,11 @@ def api_chat():
     question = body.get("question", "").strip()
     if not question:
         return jsonify({"reply": "请输入您的问题。", "in_scope": True})
-    # 越界拦截
     boundary = explainer.check_boundary(question)
     if not boundary["in_scope"]:
         reply = explainer._template_out_of_scope(question)
         return jsonify({"reply": reply, "in_scope": False})
     d = STATE["data"]
-    # 多节点/多意图问题：收集所有匹配节点的Context，优先规则模板聚合回答
     all_matches = explainer.NODE_ID_PATTERN.findall(question)
     matched_ctxs = []
     for m in all_matches:
@@ -228,7 +229,6 @@ def api_chat():
         if ctx:
             matched_ctxs.append(ctx)
 
-    # DeepSeek API（若配置了key且可用）
     api_reply = None
     if matched_ctxs:
         user_prompt = (
@@ -251,13 +251,7 @@ def api_status():
                     "deepseek_enabled": bool(os.environ.get("DEEPSEEK_API_KEY", ""))})
 
 
+# ============ 本地开发入口（生产用 gunicorn，不执行这里） ============
 if __name__ == "__main__":
-    print("=" * 60)
-    print("供应链风险全景测度系统 - 启动预计算中...")
-    print("=" * 60)
-    precompute(n_samples=400)
-    print(f"预计算完成：{len(STATE['data']['matrix'])}个节点矩阵数据就绪")
-    print(f"Shapley Top3: {STATE['data']['shapley_rank'][:3]}")
-    dk = os.environ.get("DEEPSEEK_API_KEY", "")
-    print(f"DeepSeek API: {'已配置' if dk else '未配置'}")
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port, debug=False)
