@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>供应链风险全景测度系统 | 暴露度—责任度归因引擎</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #0d1b2a; color: #e0e6ed; min-height: 100vh; }
+.header { background: linear-gradient(135deg, #1b263b 0%, #0d1b2a 100%); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2a3f5f; }
+.header h1 { font-size: 20px; color: #4fc3f7; letter-spacing: 1px; }
+.header .subtitle { font-size: 12px; color: #7a8ba6; margin-top: 2px; }
+.status-badge { padding: 4px 12px; border-radius: 12px; font-size: 12px; background: #1b3a2e; color: #4caf50; border: 1px solid #2e7d32; }
+.status-badge.loading { background: #3a2e1b; color: #ff9800; border-color: #e65100; }
+.main { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; padding: 16px 20px; }
+.panel { background: #142639; border: 1px solid #1e3a5f; border-radius: 10px; padding: 16px; }
+.panel-title { font-size: 15px; color: #4fc3f7; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.panel-title::before { content: ""; width: 4px; height: 16px; background: #4fc3f7; border-radius: 2px; }
+#matrixChart { width: 100%; height: 420px; }
+.quadrant-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; }
+.quadrant-legend span { display: flex; align-items: center; gap: 4px; }
+.quadrant-legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.chat-panel { display: flex; flex-direction: column; height: 520px; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: 88%; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+.msg.user { align-self: flex-end; background: #1a4a6b; color: #b3e5fc; border: 1px solid #1565c0; }
+.msg.bot { align-self: flex-start; background: #1e2d3d; color: #cfd8dc; border: 1px solid #37474f; }
+.msg.bot.out-of-scope { border-color: #c62828; background: #2d1a1a; }
+.msg .meta { font-size: 11px; color: #78909c; margin-top: 6px; border-top: 1px dashed #37474f; padding-top: 4px; }
+.chat-input { display: flex; gap: 8px; padding-top: 10px; border-top: 1px solid #1e3a5f; }
+.chat-input input { flex: 1; background: #0d1b2a; border: 1px solid #2a3f5f; color: #e0e6ed; padding: 10px 14px; border-radius: 8px; font-size: 13px; outline: none; }
+.chat-input input:focus { border-color: #4fc3f7; }
+.chat-input button { background: #1565c0; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.chat-input button:hover { background: #1976d2; }
+.quick-questions { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 0; }
+.quick-questions button { background: #1a2f45; color: #80d8ff; border: 1px solid #1e4a6b; padding: 4px 10px; border-radius: 12px; font-size: 11px; cursor: pointer; }
+.quick-questions button:hover { background: #24405c; }
+.tabs { padding: 0 20px; }
+.tab-headers { display: flex; gap: 4px; }
+.tab-headers button { background: #142639; color: #7a8ba6; border: 1px solid #1e3a5f; border-bottom: none; padding: 8px 18px; border-radius: 8px 8px 0 0; font-size: 13px; cursor: pointer; }
+.tab-headers button.active { color: #4fc3f7; background: #1a3050; border-color: #4fc3f7; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+#topoChart { width: 100%; height: 450px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #1e3a5f; }
+th { color: #4fc3f7; font-weight: 600; }
+td { color: #b0bec5; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+.tag.dominant_core { background: #4a1a2a; color: #ef5350; }
+.tag.hidden_critical { background: #4a3a1a; color: #ffa726; }
+.tag.local_disturbance { background: #1a3a4a; color: #29b6f6; }
+.tag.routine { background: #1a3a2a; color: #66bb6a; }
+.tag.cut { background: #3a1a1a; color: #e57373; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+.info-card { background: #0d1b2a; border: 1px solid #1e3a5f; border-radius: 8px; padding: 12px; }
+.info-card h4 { color: #4fc3f7; font-size: 13px; margin-bottom: 8px; }
+.info-card p { font-size: 12px; color: #90a4ae; line-height: 1.6; }
+.audit-item { background: #0d1b2a; border: 1px solid #1e3a5f; border-radius: 8px; padding: 12px; margin-bottom: 10px; font-size: 12px; }
+.audit-item .ev-id { color: #4fc3f7; font-weight: 600; }
+.audit-item .rule { display: inline-block; margin: 2px 6px 2px 0; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+.audit-item .rule.pass { background: #1a3a2a; color: #66bb6a; }
+.audit-item .rule.fail { background: #3a1a1a; color: #ef5350; }
+.footer { text-align: center; padding: 16px; font-size: 11px; color: #546e7a; border-top: 1px solid #1e3a5f; margin-top: 16px; }
+.loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(13,27,42,0.9); display: flex; align-items: center; justify-content: center; z-index: 999; flex-direction: column; gap: 16px; }
+.spinner { width: 48px; height: 48px; border: 4px solid #1e3a5f; border-top-color: #4fc3f7; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div style="color:#4fc3f7; font-size:15px;">系统预计算中：多智能体文本测度 → 图博弈Shapley采样 → 矩阵构建...</div>
+</div>
+
+<div class="header">
+  <div>
+    <h1>供应链风险全景测度系统</h1>
+    <div class="subtitle">LLM多智能体 × 图博弈归因 | 暴露度—责任度二维决策 | 可验证智能体交互</div>
+  </div>
+  <div class="status-badge loading" id="statusBadge">计算中...</div>
+</div>
+
+<div class="main">
+  <div class="panel">
+    <div class="panel-title">暴露度—责任度二维交叉决策矩阵（动态N节点）</div>
+    <div id="matrixChart"></div>
+    <div class="quadrant-legend">
+      <span><i style="background:#ef5350"></i>显性核心（双高）</span>
+      <span><i style="background:#ffa726"></i>隐性关键（低暴露—高责任）</span>
+      <span><i style="background:#29b6f6"></i>局部扰动（高暴露—低责任）</span>
+      <span><i style="background:#66bb6a"></i>常规节点</span>
+      <span id="crossValInfo" style="margin-left:auto;color:#78909c"></span>
+    </div>
+  </div>
+
+  <div class="panel chat-panel">
+    <div class="panel-title">智能体对话（受约束业务翻译官）</div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="msg bot">您好，我是供应链风险归因系统的业务翻译官。我可以基于已计算的拓扑指标、Shapley责任度和证据锚点，为您解释节点风险、矩阵定位和防御建议。<br><br>我的回答遵循可验证约束：<b>只做基于事实的业务解释，不参与数值计算，不推断未提供的节点关系</b>，超出局部灾害级联失效范围的问题将被拒答。</div>
+    </div>
+    <div class="quick-questions">
+      <button onclick="askQuestion('哪些节点是隐性关键？')">隐性关键节点？</button>
+      <button onclick="askQuestion('应急预算应该优先给谁？')">预算给谁？</button>
+      <button onclick="askQuestion('请解释N3的风险')">解释N3</button>
+      <button onclick="askQuestion('请解释N5的风险')">解释N5</button>
+      <button onclick="askQuestion('矩阵全局总览')">矩阵总览</button>
+      <button onclick="askQuestion('明天股市会涨吗？')">越界测试</button>
+    </div>
+    <div class="chat-input">
+      <input type="text" id="chatInput" placeholder="输入问题，如：为什么N3责任度最高？如何防御N5的风险？" onkeydown="if(event.key==='Enter')sendChat()">
+      <button onclick="sendChat()">发送</button>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab-headers">
+    <button class="active" onclick="switchTab('topo',this)">拓扑网络图</button>
+    <button onclick="switchTab('cuts',this)">割集与瓶颈分析</button>
+    <button onclick="switchTab('pipeline',this)">多智能体流水线审计</button>
+    <button onclick="switchTab('sensitivity',this)">敏感性与效度检验</button>
+    <button onclick="switchTab('ranking',this)">责任度排序</button>
+  </div>
+  <div class="panel tab-content active" id="tab-topo">
+    <div class="panel-title">13节点有向供应链网络（多源多汇·双向调拨·多重运输）</div>
+    <div id="topoChart"></div>
+  </div>
+  <div class="panel tab-content" id="tab-cuts">
+    <div class="panel-title">木桶效应数学化：最小割/瓶颈约束分析</div>
+    <div id="cutsContent">加载中...</div>
+  </div>
+  <div class="panel tab-content" id="tab-pipeline">
+    <div class="panel-title">前端多智能体文本测度流水线审计（Extractor→Feedback→Revision）</div>
+    <div id="pipelineContent">加载中...</div>
+  </div>
+  <div class="panel tab-content" id="tab-sensitivity">
+    <div class="panel-title">数据三级精度敏感性与全链路信效度检验</div>
+    <div id="sensitivityContent">
+      <p style="font-size:13px;color:#90a4ae;margin-bottom:12px">点击下方按钮执行敏感性扫描（对proxy_ratio/prior_assumption节点做±25%容量扰动，验证Shapley核心排序稳健性）与Kendall's W对称性诊断。</p>
+      <button onclick="runSensitivity()" style="background:#1565c0;color:#fff;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-size:13px;">运行敏感性分析</button>
+      <div id="sensitivityResult" style="margin-top:16px"></div>
+    </div>
+  </div>
+  <div class="panel tab-content" id="tab-ranking">
+    <div class="panel-title">Shapley责任度排序（蒙特卡罗排列采样）</div>
+    <div id="rankingContent">加载中...</div>
+  </div>
+</div>
+
+<div class="footer">
+  本系统为供应链风险归因验证案例，拓扑容量基于公开信息做代理映射，不声称代表企业内部绝对机密数据 | 零插值/零虚构 | 智能体输出可追溯、可复核、可复现
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+{
+  "meta": {
+    "case": "伊利液态奶产品线验证案例",
+    "window": "2025-09-01 至 2026-09-30",
+    "baseline_anchor": "呼和浩特工厂日处理鲜奶6500吨 = 1.0（无量纲）",
+    "disclaimer": "拓扑边容量基于公开信息做代理映射，不声称代表企业内部绝对机密数据"
+  },
+  "nodes": [
+    {"id": "N1", "type": "supply", "name": "敕勒川牧场", "role": "主奶源", "lat": 40.85, "lon": 111.75, "capacity": 0.35, "capacity_source": "absolute_anchor", "anchor_note": "日产230吨生鲜乳（公开报道）", "key_convert": false},
+    {"id": "N2", "type": "supply", "name": "呼伦贝尔牧场", "role": "备奶源", "lat": 49.20, "lon": 119.77, "capacity": 0.50, "capacity_source": "proxy_ratio", "anchor_note": "牧场群相对代理", "key_convert": false},
+    {"id": "N3", "type": "factory", "name": "呼和浩特工厂", "role": "核心转换", "lat": 40.84, "lon": 111.75, "capacity": 1.00, "capacity_source": "absolute_anchor", "anchor_note": "日处理鲜奶6500吨（经济日报/呼和浩特市政府官网交叉确认）", "key_convert": true},
+    {"id": "N4", "type": "factory", "name": "河北工厂", "role": "备份转换", "lat": 38.51, "lon": 115.06, "capacity": 0.25, "capacity_source": "absolute_anchor", "anchor_note": "日处理鲜奶1600吨（定州工厂公开信息）", "key_convert": true},
+    {"id": "N5", "type": "warehouse", "name": "武汉分仓", "role": "华中枢纽", "lat": 30.59, "lon": 114.31, "capacity": 0.55, "capacity_source": "proxy_ratio", "anchor_note": "武汉云仓日均约2万单（公开报道）", "key_convert": false},
+    {"id": "N6", "type": "warehouse", "name": "广州分仓", "role": "华南枢纽", "lat": 23.13, "lon": 113.27, "capacity": 0.50, "capacity_source": "proxy_ratio", "anchor_note": "华南枢纽仓储规模相对代理", "key_convert": false},
+    {"id": "N7", "type": "warehouse", "name": "成都分仓", "role": "西南枢纽", "lat": 30.57, "lon": 104.07, "capacity": 0.40, "capacity_source": "absolute_anchor", "anchor_note": "成都工厂日产能1610吨（公开信息），分仓综合代理", "key_convert": false},
+    {"id": "N8", "type": "delivery", "name": "华南配送", "role": "末端配送", "lat": 23.02, "lon": 113.75, "capacity": 0.30, "capacity_source": "prior_assumption", "anchor_note": "先验假设：末端可替代、缓冲薄", "key_convert": false},
+    {"id": "N9", "type": "delivery", "name": "华中配送", "role": "末端配送", "lat": 30.60, "lon": 114.30, "capacity": 0.35, "capacity_source": "prior_assumption", "anchor_note": "先验假设：末端可替代、缓冲薄", "key_convert": false},
+    {"id": "N10", "type": "delivery", "name": "西南配送", "role": "末端配送", "lat": 30.67, "lon": 104.06, "capacity": 0.25, "capacity_source": "prior_assumption", "anchor_note": "先验假设：末端可替代、缓冲薄", "key_convert": false},
+    {"id": "N11", "type": "terminal", "name": "广州终端群", "role": "需求汇", "lat": 23.13, "lon": 113.26, "capacity": 0.35, "capacity_source": "proxy_ratio", "anchor_note": "需求权重0.35", "key_convert": false},
+    {"id": "N12", "type": "terminal", "name": "武汉终端群", "role": "需求汇", "lat": 30.59, "lon": 114.31, "capacity": 0.40, "capacity_source": "absolute_anchor", "anchor_note": "武汉云仓日均约2万单，需求权重0.40", "key_convert": false},
+    {"id": "N13", "type": "terminal", "name": "成都终端群", "role": "需求汇", "lat": 30.57, "lon": 104.07, "capacity": 0.25, "capacity_source": "proxy_ratio", "anchor_note": "需求权重0.25", "key_convert": false}
+  ],
+  "edges": [
+    {"from": "N1", "to": "N3", "capacity": 0.35, "mode": "rail", "bidirectional": false, "capacity_source": "absolute_anchor"},
+    {"from": "N2", "to": "N3", "capacity": 0.45, "mode": "rail", "bidirectional": false, "capacity_source": "proxy_ratio"},
+    {"from": "N2", "to": "N4", "capacity": 0.25, "mode": "rail", "bidirectional": false, "capacity_source": "proxy_ratio"},
+    {"from": "N3", "to": "N5", "capacity": 0.55, "mode": "rail", "bidirectional": false, "capacity_source": "absolute_anchor"},
+    {"from": "N3", "to": "N6", "capacity": 0.50, "mode": "rail", "bidirectional": false, "capacity_source": "absolute_anchor"},
+    {"from": "N3", "to": "N7", "capacity": 0.40, "mode": "multimodal", "bidirectional": false, "capacity_source": "proxy_ratio"},
+    {"from": "N4", "to": "N5", "capacity": 0.30, "mode": "road", "bidirectional": false, "capacity_source": "proxy_ratio"},
+    {"from": "N4", "to": "N6", "capacity": 0.25, "mode": "multimodal", "bidirectional": false, "capacity_source": "prior_assumption"},
+    {"from": "N5", "to": "N6", "capacity": 0.15, "mode": "road", "bidirectional": true, "capacity_source": "prior_assumption"},
+    {"from": "N6", "to": "N5", "capacity": 0.15, "mode": "road", "bidirectional": true, "capacity_source": "prior_assumption"},
+    {"from": "N5", "to": "N7", "capacity": 0.12, "mode": "road", "bidirectional": true, "capacity_source": "prior_assumption"},
+    {"from": "N7", "to": "N5", "capacity": 0.12, "mode": "road", "bidirectional": true, "capacity_source": "prior_assumption"},
+    {"from": "N5", "to": "N9", "capacity": 0.35, "mode": "road", "bidirectional": false, "capacity_source": "proxy_ratio"},
+    {"from": "N6", "to": "N8", "capacity": 0.30, "mode": "road", "bidirectional": false, "capacity_source": "proxy_ratio"},
+    {"from": "N7", "to": "N10", "capacity": 0.25, "mode": "road", "bidirectional": false, "capacity_source": "proxy_ratio"},
+    {"from": "N6", "to": "N11", "capacity": 0.20, "mode": "road", "bidirectional": false, "capacity_source": "prior_assumption"},
+    {"from": "N8", "to": "N11", "capacity": 0.30, "mode": "road", "bidirectional": false, "capacity_source": "prior_assumption"},
+    {"from": "N9", "to": "N12", "capacity": 0.35, "mode": "road", "bidirectional": false, "capacity_source": "proxy_ratio"},
+    {"from": "N10", "to": "N13", "capacity": 0.25, "mode": "road", "bidirectional": false, "capacity_source": "prior_assumption"}
+  ],
+  "sources": ["N1", "N2"],
+  "sinks": ["N11", "N12", "N13"],
+  "demand_weights": {"N11": 0.35, "N12": 0.40, "N13": 0.25},
+  "player_mode": "node",
+  "failure_mode": "remove_node",
+  "penalty_params": {
+    "maxflow_weight": 0.65,
+    "connectivity_weight": 0.35,
+    "reachability_weight": 0.35,
+    "source_redundancy_weight": 0.15,
+    "scc_ratio_weight": 0.15,
+    "cut_penalty_weight": 0.20,
+    "mincut_drop_weight": 0.15,
+    "cut_point_penalty": 0.10,
+    "bridge_penalty": 0.08
+  },
+  "regions": {
+    "north_source": ["N1", "N2", "N3", "N4"],
+    "central_hub": ["N5", "N9", "N12"],
+    "south_hub": ["N6", "N8", "N11"],
+    "west_hub": ["N7", "N10", "N13"]
+  }
+}
