@@ -114,9 +114,10 @@ def precompute(n_samples=400):
     STATE["ready"] = True
 
 
-# ================= 关键改动：模块级启动预计算 =================
+# ================= 模块级启动预计算 =================
 # gunicorn 导入 app 时 __name__ == "app"，原 __main__ 块不会执行；
 # 放到模块级，保证无论 python app.py 还是 gunicorn 都能初始化。
+# 后端请使用单 worker 启动，避免重复预计算。
 if not STATE["ready"]:
     print("=" * 60)
     print("供应链风险全景测度系统 - 启动预计算中...")
@@ -251,7 +252,9 @@ def api_status():
                     "deepseek_enabled": bool(os.environ.get("DEEPSEEK_API_KEY", ""))})
 
 
-# ============ 本地开发入口（生产用 gunicorn，不执行这里） ============
-if __name__ == "__main__":
+# ============ 本地开发入口 ============
+# 默认不执行；本地调试时设置 FLASK_DEV=1 再 python app.py。
+# Streamlit Cloud / 生产 gunicorn 都不会走到这里。
+if __name__ == "__main__" and os.environ.get("FLASK_DEV") == "1":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
